@@ -36,6 +36,15 @@ function createAlarm(name) {
     )
 }
 
+// function.stopTimer(name) {
+//     chrome.alarms.stop(
+//         name,
+//         {
+
+//         }
+//     )
+// }
+
 function clearAlarm(name) {
     chrome.alarms.clear(
         name,
@@ -195,28 +204,66 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
 
 // listen for message from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'setCustomTimer') {
-        const minutes = request.minutes;
-        if (minutes > 0) {
-            seconds = minutes * 60;
-            chrome.action.setBadgeText({ text: minutes + "M" }, () => { });
-            // chrome.action.setBadgeBackgroundColor({ color: "blue" }, () => { });
-            createNotification(`Timer set to ${minutes} minutes`);
-            //  createNotification("Your Timer has started");
-            timerIsRunning = true;
-            createAlarm("screen-timer");
-            chrome.action.setBadgeBackgroundColor({ color: "red" }, () => { });
-            chrome.contextMenus.update("start-timer", {
+    switch (request.action) {
+        case 'setCustomTimer':
+            if (!timerIsRunning) {
+                seconds = request.minutes * 60;
+                createNotification("Your Timer has started");
+                timerIsRunning = true;
+                createAlarm("screen-timer");
+                chrome.action.setBadgeBackgroundColor({ color: "red" }, () => { });
+                chrome.contextMenus.update("start-timer", {
+                    title: "Stop Timer",
+                    contexts: ["all"]
+                });
+                sendResponse({ success: true });
+            } else {
+                sendResponse({ success: false });
+            }
+            break;
 
-                title: "Stop Timer",
+        case 'stopTimer':
+            console.log("stopTimer message 1 received");
+            if (timerIsRunning) {
+                createNotification("Your Timer has stopped");
+                timerIsRunning = false;
+                clearAlarm("screen-timer");
+                chrome.action.setBadgeText({ text: "S" }, () => { });
+                chrome.action.setBadgeBackgroundColor({ color: "yellow" }, () => { });
+                chrome.contextMenus.update("start-timer", {
+                    title: "Start Timer",
+                    contexts: ["all"]
+                });
+                sendResponse({ success: true });
+            } else {
+                sendResponse({ success: false });
+            } console.log("stopTimer message 2 received");
+            break;
+
+        case 'resetTimer':
+            createNotification("Your Timer has been reset");
+            timerIsRunning = false;
+            seconds = 0;
+            clearAlarm("screen-timer");
+            chrome.action.setBadgeText({ text: "R" }, () => { });
+            chrome.action.setBadgeBackgroundColor({ color: "green" }, () => { });
+            chrome.contextMenus.update("start-timer", {
+                title: "Start Timer",
                 contexts: ["all"]
             });
+            sendResponse({ success: true });
+            break;
 
-        }
+        case 'getTimerStatus':
+            sendResponse({ timerIsRunning: timerIsRunning });
+            break;
+
+        default:
+            sendResponse({ success: false });
+            break;
     }
-    sendResponse({ success: true });
     return true;
-})
+});
 
 
 // chrome.runtime.onInstalled.addListener(function (details) {
